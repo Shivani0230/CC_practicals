@@ -1,0 +1,43 @@
+# === Stage 1: Build environment ===
+FROM python:3.6-slim as builder
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Set working directory
+WORKDIR /install
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libffi-dev \
+    libssl-dev \
+    build-essential \
+    && pip install --upgrade pip
+
+# Copy requirements and install packages to a temporary folder
+COPY requirements.txt .
+RUN pip install --prefix=/install/packages -r requirements.txt
+
+# === Stage 2: Runtime environment ===
+FROM python:3.6-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Set working directory
+WORKDIR /code
+
+# Copy only installed packages from builder stage
+COPY --from=builder /install/packages /usr/local
+
+# Copy application source code
+COPY . .
+
+# Expose port
+EXPOSE 8000
+
+# Run the application
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
